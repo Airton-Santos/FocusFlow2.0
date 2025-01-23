@@ -10,16 +10,26 @@ const Home = () => {
   const [tarefas, setTarefas] = useState([]);
   const [filteredTarefas, setFilteredTarefas] = useState([]);  // Estado para armazenar as tarefas filtradas
   const [selectedPriority, setSelectedPriority] = useState('Todas'); // Estado para a prioridade selecionada
+  const [progress, setProgress] = useState(0); // Estado para progresso das tarefas
   const user = auth.currentUser;
   const router = useRouter(); // Inicializando o roteador
   const drawer = useRef(null);  // Refs para o Drawer
 
-  // Função para navegar para a página de configurações
+  // Função para calcular o progresso das tarefas concluídas
+  const calculateProgress = (tarefas) => {
+    if (tarefas.length === 0) {
+      setProgress(0);
+      return;
+    }
+    const completed = tarefas.filter(tarefa => tarefa.conclusaoDaTarefa).length;
+    const progressPercentage = (completed / tarefas.length) * 100;
+    setProgress(progressPercentage);
+  };
+
   const goToConfig = () => {
     router.replace('/config');
   };
 
-  // Função para navegar para a página de adicionar tarefas
   const goToAddTask = () => {
     router.replace('/addTarefas');
   };
@@ -34,6 +44,7 @@ const Home = () => {
       let array = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setTarefas(array);
       setFilteredTarefas(array); // Inicializa as tarefas filtradas com todas as tarefas
+      calculateProgress(array); // Calcula o progresso com base nas tarefas
     } catch (error) {
       console.error(error);
     }
@@ -44,64 +55,52 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    // Filtra as tarefas com base na prioridade selecionada
     if (selectedPriority === 'Todas') {
       setFilteredTarefas(tarefas);
     } else {
       setFilteredTarefas(tarefas.filter(tarefa => tarefa.prioridade === selectedPriority));
     }
+    calculateProgress(tarefas); // Atualiza o progresso ao filtrar as tarefas
   }, [selectedPriority, tarefas]);
 
-  // Função para renderizar cada tarefa na FlatList
-  const renderTask = ({ item }) => {
-    // Asegure que a prioridade seja sempre uma das válidas
-    const priority = item.prioridade || 'Média'; // Valor padrão "Média" caso não tenha prioridade definida
-  
-    return (
-      <List.Item
-        title={item.titulo} 
-        right={() => (
-          <View style={styles.taskActions}>
-            <List.Icon icon={item.conclusaoDaTarefa ? "check-circle-outline" : "circle-outline"} />
-          </View>
-        )}
-        style={styles.taskItem}
-        titleStyle={{ color: '#FFF' }} 
-        onPress={() => verTarefa(item.id)}
-      />
-    );
-  };
-  
-  // Função para renderizar o conteúdo do Drawer
+  const renderTask = ({ item }) => (
+    <List.Item
+      title={item.titulo} 
+      right={() => (
+        <View style={styles.taskActions}>
+          <List.Icon icon={item.conclusaoDaTarefa ? "check-circle-outline" : "circle-outline"} />
+        </View>
+      )}
+      style={styles.taskItem}
+      titleStyle={{ color: '#FFF' }} 
+      onPress={() => verTarefa(item.id)}
+    />
+  );
+
   const navigationView = () => (
     <View style={styles.drawer}>
-      {/* Prioridade das Tarefas */}
       <Text style={styles.drawerText}>Definir Prioridade</Text>
       <Picker
           selectedValue={selectedPriority}
           style={styles.picker}
           onValueChange={(itemValue) => setSelectedPriority(itemValue)}>
-
           <Picker.Item label="Alta" value="Alta" />
           <Picker.Item label="Média" value="Média" />
           <Picker.Item label="Baixa" value="Baixa" />
           <Picker.Item label="Todas" value="Todas" />
-
       </Picker>
-
       <Text style={styles.drawerText}>Prioridade selecionada: {selectedPriority}</Text>
     </View>
   );
 
   return (
     <DrawerLayoutAndroid
-      ref={drawer}  // Referência do Drawer
+      ref={drawer}
       drawerWidth={300}
       drawerPosition="left"
-      renderNavigationView={navigationView} // Componente que aparece no Drawer
+      renderNavigationView={navigationView}
     >
       <View style={styles.container}>
-        {/* Seção do Usuário */}
         <ImageBackground
           source={require('../assets/Elements/BackgroundUser.png')}
           style={styles.backgroundUser}
@@ -113,7 +112,14 @@ const Home = () => {
           </View>
         </ImageBackground>
 
-        {/* Lista de Tarefas */}
+        {/* Barra de progresso */}
+        <View style={styles.progressSection}>
+          <Text style={styles.progressText}>Progresso: {progress.toFixed(1)}%</Text>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          </View>
+        </View>
+
         <View style={styles.taskSection}>
           <ImageBackground
             style={styles.backgroundTarefas}
@@ -121,15 +127,14 @@ const Home = () => {
           >
             <Text style={styles.taskTitle}>Minhas Tarefas</Text>
             <FlatList
-              data={filteredTarefas}  // Usar as tarefas filtradas
-              keyExtractor={(item) => item.id} // Chave única para cada item
-              renderItem={renderTask} // Função que renderiza cada item
-              ListEmptyComponent={<Text style={styles.emptyMessage}>Nenhuma tarefa encontrada.</Text>} // Mensagem para lista vazia
+              data={filteredTarefas}
+              keyExtractor={(item) => item.id}
+              renderItem={renderTask}
+              ListEmptyComponent={<Text style={styles.emptyMessage}>Nenhuma tarefa encontrada.</Text>}
             />
           </ImageBackground>
         </View>
 
-        {/* Navegação */}
         <View style={styles.navigation}>
           <Button onPress={goToConfig} style={styles.navButton}>
             <Image style={styles.icon} source={require('../assets/Elements/configuracao.png')} />
@@ -281,5 +286,30 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 5,
     borderColor: '#3CA2A2',  // Cor de borda para o picker
+  },
+  
+  progressSection: {
+    width: '90%',
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+
+  progressText: {
+    color: '#FFF',
+    fontSize: 16,
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+
+  progressBar: {
+    height: 10,
+    borderRadius: 10,
+    backgroundColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#308282',
   },
 });

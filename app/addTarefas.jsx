@@ -1,49 +1,69 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput } from 'react-native';
-import { Button } from 'react-native-paper'; // Importa o botão do react-native-paper
+import { StyleSheet, Text, View, TextInput, FlatList, TouchableOpacity } from 'react-native';
+import { Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { auth, db } from '../firebaseConfig';
 import { addDoc, collection } from 'firebase/firestore';
-import { Picker } from '@react-native-picker/picker';  // Importando o Picker para selecionar a prioridade
+import { Picker } from '@react-native-picker/picker';
 
 const AddTask = () => {
-  // Estados para armazenar título, descrição e prioridade da tarefa
-  const [titulo, setTitulo] = useState(''); // Estado para o título
-  const [descricao, setDescription] = useState(''); // Estado para a descrição
-  const [prioridade, setPrioridade] = useState('Média'); // Estado para a prioridade
-  const [loading, setLoading] = useState(false); // Estado para indicar carregamento
-  const user = auth.currentUser; // Usuário autenticado
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescription] = useState('');
+  const [prioridade, setPrioridade] = useState('Média');
+  const [loading, setLoading] = useState(false);
+  const [topicos, setTopicos] = useState([]); // Estado para os tópicos
+  const [novoTopico, setNovoTopico] = useState(''); // Estado para o novo tópico
+  const user = auth.currentUser;
 
-  // Função para adicionar uma tarefa ao Firestore
+  // Adiciona um tópico à lista
+  const adicionarTopico = () => {
+    if (novoTopico.trim()) {
+      setTopicos([...topicos, { nome: novoTopico, concluido: false }]);
+      setNovoTopico('');
+    }
+  };
+
+  // Marca um tópico como concluído
+  const alternarConclusao = (index) => {
+    const novaLista = [...topicos];
+    novaLista[index].concluido = !novaLista[index].concluido;
+    setTopicos(novaLista);
+  };
+
+  // Calcula o progresso com base nos tópicos concluídos
+  const calcularProgresso = () => {
+    if (topicos.length === 0) return 0;
+    const concluidos = topicos.filter((topico) => topico.concluido).length;
+    return (concluidos / topicos.length) * 100;
+  };
+
   const handleAddTask = async () => {
-    // Valida se os campos foram preenchidos
-    if (!titulo.trim() || !descricao.trim()) {
-      console.error("Preencha todos os campos antes de adicionar a tarefa.");
+    if (!titulo.trim() || !descricao.trim() || topicos.length === 0) {
+      console.error("Preencha todos os campos e adicione pelo menos um tópico.");
       return;
     }
 
     try {
-      setLoading(true); // Ativa o estado de carregamento
+      setLoading(true);
 
-      // Adiciona a tarefa à coleção "Tarefas" no Firestore
       await addDoc(collection(db, "Tarefas"), {
-        titulo: titulo, // Define o título das tarefas
-        description: descricao, // Define a descrição das tarefas
-        prioridade: prioridade, // Define a prioridade das tarefas
-        conclusaoDaTarefa: false, // Define que a tarefa não está concluída
-        idUser: user.uid, // Associa a tarefa ao ID do usuário autenticado
+        titulo,
+        description: descricao,
+        prioridade,
+        topicos,
+        progresso: calcularProgresso(),
+        conclusaoDaTarefa: false,
+        idUser: user.uid,
       });
 
-      router.replace("/home"); // Navega de volta para a tela inicial
+      router.replace("/home");
     } catch (error) {
-      // Trata erros de adição ao Firestore
       console.error("Erro ao adicionar tarefa: ", error.message);
     } finally {
-      setLoading(false); // Desativa o estado de carregamento
+      setLoading(false);
     }
   };
 
-  // Função para voltar à tela inicial
   const handleGoBack = () => {
     router.replace('/home');
   };
@@ -52,7 +72,6 @@ const AddTask = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Adicionar Tarefa</Text>
 
-      {/* Campo para o título da tarefa */}
       <TextInput
         style={styles.input}
         placeholder="Título da Tarefa"
@@ -61,7 +80,6 @@ const AddTask = () => {
         onChangeText={setTitulo}
       />
 
-      {/* Campo para a descrição da tarefa */}
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Descrição da Tarefa"
@@ -71,7 +89,6 @@ const AddTask = () => {
         onChangeText={setDescription}
       />
 
-      {/* Seletor de Prioridade */}
       <Text style={styles.label}>Prioridade:</Text>
       <Picker
         selectedValue={prioridade}
@@ -83,7 +100,38 @@ const AddTask = () => {
         <Picker.Item label="Baixa" value="Baixa" />
       </Picker>
 
-      {/* Botão OK */}
+      <Text style={styles.label}>Tópicos:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Novo Tópico"
+        placeholderTextColor="#FFF"
+        value={novoTopico}
+        onChangeText={setNovoTopico}
+      />
+      <Button
+        mode="contained"
+        onPress={adicionarTopico}
+        style={styles.addTopicButton}
+      >
+        Adicionar Tópico
+      </Button>
+
+      <FlatList
+        data={topicos}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity onPress={() => alternarConclusao(index)}>
+            <Text style={item.concluido ? styles.topicoConcluido : styles.topico}>
+              {item.nome}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+
+      <Text style={styles.label}>
+        Progresso: {calcularProgresso().toFixed(2)}%
+      </Text>
+
       <View style={styles.buttonContainer}>
         <Button
           contentStyle={styles.btncontent}
@@ -96,7 +144,6 @@ const AddTask = () => {
         </Button>
       </View>
 
-      {/* Botão Voltar */}
       <View style={styles.buttonContainer}>
         <Button
           contentStyle={styles.btncontent}
@@ -114,58 +161,83 @@ const AddTask = () => {
 export default AddTask;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#2D2D29',
-    padding: 20,
+    padding: 20 
+},
+
+  title: { 
+    fontSize: 24, 
+    fontWeight: 
+    'bold', 
+    marginBottom: 20, 
+    color: '#FFF' 
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#FFF',
+
+  input: { 
+    width: '100%', 
+    height: 40, 
+    borderColor: '#ccc', 
+    color: '#FFF', 
+    borderWidth: 1, 
+    borderRadius: 5, 
+    paddingHorizontal: 10, 
+    marginBottom: 20 
   },
-  input: {
-    width: '100%',
-    height: 40,
-    borderColor: '#ccc',
-    color: '#FFF',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginBottom: 20,
+
+  textArea: { 
+    height: 100, 
+    textAlignVertical: 'top' 
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
+
+  label: { 
+    color: '#FFF', 
+    fontSize: 16, 
+    marginTop: 20,
+    marginBottom: 5 
   },
-  label: {
-    color: '#FFF',
+
+  picker: { 
+    width: '100%', 
+    height: 55, 
+    backgroundColor: '#3C3C3C', 
+    borderRadius: 5, 
+    color: '#FFF' 
+  },
+
+  buttonContainer: { 
+    width: '80%', 
+    marginBottom: 15 
+  },
+
+  button: { 
+    backgroundColor: '#215A6D', 
+    height: 50, 
+    borderRadius: 25 
+  },
+
+  btncontent: { 
+    height: 50 
+  },
+
+  addTopicButton: { 
+    marginTop: 10, 
+    backgroundColor: '#4CAF50' 
+  },
+  
+  topico: { 
+    color: '#FFF', 
     fontSize: 16,
-    marginBottom: 5,
+    marginTop: 20,
+    marginVertical: 5 
   },
-  picker: {
-    width: '100%',
-    height: 55,
-    backgroundColor: '#3C3C3C',
-    borderRadius: 5,
-    color: '#FFF',
-  },
-  buttonContainer: {
-    width: '80%',
-    marginBottom: 15,
-  },
-  button: {
-    marginTop: 30,
-    marginBottom: -20,
-    backgroundColor: '#215A6D',
-    height: 50,
-    borderRadius: 25,
-  },
-  btncontent: {
-    height: 50,
+
+  topicoConcluido: { 
+    color: '#90EE90', 
+    fontSize: 16, 
+    marginVertical: 5, 
+    textDecorationLine: 'line-through'
   },
 });
-

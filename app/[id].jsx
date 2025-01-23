@@ -1,27 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View, Alert, TextInput } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View, Alert, TextInput, FlatList, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { db } from '../firebaseConfig';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker'; // Importação atualizada
+import { Checkbox } from 'react-native-paper'; // Importar Checkbox
 
 const VerTarefa = () => {
   const { id } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [tarefa, setTarefa] = useState({});
-  const [editing, setEditing] = useState(false);  // Estado para controlar se estamos editando
-  const [titulo, setTitulo] = useState('');  // Estado para o título
-  const [descricao, setDescricao] = useState('');  // Estado para a descrição
-  const [concluida, setConcluida] = useState(false);  // Estado para controle de conclusão da tarefa
-  const [prioridade, setPrioridade] = useState(''); // Estado para a prioridade da tarefa
-
+  const [editing, setEditing] = useState(false);
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [concluida, setConcluida] = useState(false);
+  const [prioridade, setPrioridade] = useState('');
+  const [topicos, setTopicos] = useState([]); // Tópicos (subtarefas)
+  
   const handleGoBack = () => {
     router.replace('/home');
   };
 
-  // Função para obter os dados da tarefa
   const getTarefas = async () => {
     try {
       const docRef = doc(db, 'Tarefas', id);
@@ -29,10 +30,11 @@ const VerTarefa = () => {
       if (docSnap.exists()) {
         const tarefaData = docSnap.data();
         setTarefa(tarefaData);
-        setTitulo(tarefaData.titulo); // Definir título ao carregar
-        setDescricao(tarefaData.description); // Definir descrição ao carregar
-        setConcluida(tarefaData.conclusaoDaTarefa); // Definir o status de conclusão
-        setPrioridade(tarefaData.prioridade); // Definir a prioridade da tarefa
+        setTitulo(tarefaData.titulo);
+        setDescricao(tarefaData.description);
+        setConcluida(tarefaData.conclusaoDaTarefa);
+        setPrioridade(tarefaData.prioridade);
+        setTopicos(tarefaData.topicos || []); // Carregar os tópicos (subtarefas), se existirem
       } else {
         console.log('Documento não foi encontrado');
       }
@@ -47,40 +49,81 @@ const VerTarefa = () => {
     getTarefas();
   }, []);
 
-  // Função para concluir a tarefa com alerta de confirmação
-  const concluirTarefa = () => {
-    Alert.alert(
-      'Confirmar Conclusão',
-      'Você tem certeza que deseja concluir esta tarefa?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Concluir',
-          onPress: async () => {
-            try {
-              const docRef = doc(db, 'Tarefas', id);
-              await updateDoc(docRef, {
-                conclusaoDaTarefa: true, // Marca a tarefa como concluída
-              });
-              setTarefa(prevState => ({
-                ...prevState,
-                conclusaoDaTarefa: true,
-              }));
-              setConcluida(true); // Atualiza o status local
-            } catch (error) {
-              console.error('Erro ao concluir a tarefa: ', error);
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+  const salvarAlteracoes = async () => {
+    if (titulo.trim() === '' || descricao.trim() === '' || prioridade.trim() === '') {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      return;
+    }
+
+    try {
+      const docRef = doc(db, 'Tarefas', id);
+      await updateDoc(docRef, {
+        titulo,
+        description: descricao,
+        conclusaoDaTarefa: concluida,
+        prioridade,
+        topicos, // Salvar os tópicos atualizados
+      });
+      setTarefa({ ...tarefa, titulo, description: descricao, conclusaoDaTarefa: concluida, prioridade });
+      setEditing(false);
+    } catch (error) {
+      console.error('Erro ao atualizar a tarefa: ', error);
+      Alert.alert('Erro', 'Não foi possível salvar as alterações.');
+    }
   };
 
-  // Função para excluir a tarefa com alerta de confirmação
+  const concluirTarefa = async () => {
+    const allItensConcluidos = topicos.every(item => item.concluido === true); // Verificar se todos os tópicos estão concluídos
+
+    if (allItensConcluidos) {
+      Alert.alert(
+        'Confirmar Conclusão',
+        'Você tem certeza que deseja concluir esta tarefa? Todos os itens foram concluídos.',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Concluir',
+            onPress: async () => {
+              try {
+                const docRef = doc(db, 'Tarefas', id);
+                await updateDoc(docRef, {
+                  conclusaoDaTarefa: true,
+                  topicos: topicos, // Salvar todos os tópicos com status 'concluído'
+                });
+                setTarefa(prevState => ({
+                  ...prevState,
+                  conclusaoDaTarefa: true,
+                  topicos: topicos, // Atualiza os tópicos
+                }));
+                setConcluida(true); // Atualiza o estado local da tarefa
+              } catch (error) {
+                console.error('Erro ao concluir a tarefa: ', error);
+              }
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    } else {
+      // Se não todos os tópicos foram concluídos, apenas salvar os tópicos marcados
+      try {
+        const docRef = doc(db, 'Tarefas', id);
+        await updateDoc(docRef, {
+          topicos: topicos, // Salvar os tópicos atualizados
+        });
+        setTarefa(prevState => ({
+          ...prevState,
+          topicos: topicos, // Atualiza os tópicos
+        }));
+      } catch (error) {
+        console.error('Erro ao atualizar os tópicos: ', error);
+      }
+    }
+  };
+
   const excluirTarefa = () => {
     Alert.alert(
       'Confirmar Exclusão',
@@ -95,8 +138,8 @@ const VerTarefa = () => {
           onPress: async () => {
             try {
               const docRef = doc(db, 'Tarefas', id);
-              await deleteDoc(docRef); // Deleta a tarefa do Firestore
-              handleGoBack(); // Volta para a tela inicial
+              await deleteDoc(docRef);
+              handleGoBack();
               Alert.alert('Sucesso', 'Tarefa excluída com sucesso!');
             } catch (error) {
               console.error('Erro ao excluir tarefa: ', error);
@@ -109,27 +152,10 @@ const VerTarefa = () => {
     );
   };
 
-  // Função para salvar as alterações feitas na tarefa
-  const salvarAlteracoes = async () => {
-    if (titulo.trim() === '' || descricao.trim() === '' || prioridade.trim() === '') {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
-      return;
-    }
-
-    try {
-      const docRef = doc(db, 'Tarefas', id);
-      await updateDoc(docRef, {
-        titulo,
-        description: descricao,
-        conclusaoDaTarefa: concluida, // Atualiza a conclusão no Firestore
-        prioridade, // Atualiza a prioridade no Firestore
-      });
-      setTarefa({ ...tarefa, titulo, description: descricao, conclusaoDaTarefa: concluida, prioridade }); // Atualiza a tarefa localmente
-      setEditing(false); // Finaliza a edição
-    } catch (error) {
-      console.error('Erro ao atualizar a tarefa: ', error);
-      Alert.alert('Erro', 'Não foi possível salvar as alterações.');
-    }
+  const alternarConclusao = (index) => {
+    const novosTopicos = [...topicos];
+    novosTopicos[index].concluido = !novosTopicos[index].concluido;
+    setTopicos(novosTopicos);
   };
 
   return (
@@ -149,6 +175,23 @@ const VerTarefa = () => {
                 Concluída: {tarefa.conclusaoDaTarefa ? 'Concluída' : 'Não Concluída'}
               </Text>
               <Text style={styles.taskInfoText}>Prioridade: {tarefa.prioridade}</Text>
+
+              {/* Lista de Tópicos */}
+              {topicos.length > 0 ? (
+                <FlatList
+                  data={topicos}
+                  keyExtractor={(item, index) => index.toString()}
+                  renderItem={({ item, index }) => (
+                    <TouchableOpacity onPress={() => alternarConclusao(index)}>
+                      <Text style={item.concluido ? styles.topicoConcluido : styles.topico}>
+                        {item.nome}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              ) : (
+                <Text style={styles.taskInfoText}>Nenhum tópico adicional.</Text>
+              )}
             </>
           ) : (
             <>
@@ -216,8 +259,6 @@ const VerTarefa = () => {
     </View>
   );
 };
-
-export default VerTarefa;
 
 const styles = StyleSheet.create({
   container: {
@@ -288,4 +329,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginTop: 10,
   },
+  topico: { 
+    color: '#FFF', 
+    fontSize: 16,
+    marginTop: 20,
+    marginVertical: 5 
+  },
+  topicoConcluido: { 
+    color: '#90EE90', 
+    fontSize: 16, 
+    marginVertical: 5, 
+    textDecorationLine: 'line-through'
+  },
 });
+
+export default VerTarefa;
