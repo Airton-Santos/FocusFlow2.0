@@ -1,21 +1,22 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, View, Image, ImageBackground, FlatList, DrawerLayoutAndroid } from 'react-native'; 
+import { StyleSheet, Text, View, Image, ImageBackground, FlatList, DrawerLayoutAndroid, Linking, TouchableOpacity, Alert } from 'react-native'; 
 import { Button, List } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { auth, db } from '../firebaseConfig';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { Picker } from '@react-native-picker/picker'; // Importação atualizada
+import { Picker } from '@react-native-picker/picker';
+import md5 from 'md5'
 
 const Home = () => {
   const [tarefas, setTarefas] = useState([]);
-  const [filteredTarefas, setFilteredTarefas] = useState([]);  // Estado para armazenar as tarefas filtradas
-  const [selectedPriority, setSelectedPriority] = useState('Todas'); // Estado para a prioridade selecionada
-  const [progress, setProgress] = useState(0); // Estado para progresso das tarefas
+  const [filteredTarefas, setFilteredTarefas] = useState([]);
+  const [selectedPriority, setSelectedPriority] = useState('Todas');
+  const [progress, setProgress] = useState(0);
+  const [taskCount, setTaskCount] = useState(0); // Contador de tarefas
   const user = auth.currentUser;
-  const router = useRouter(); // Inicializando o roteador
-  const drawer = useRef(null);  // Refs para o Drawer
+  const router = useRouter();
+  const drawer = useRef(null);
 
-  // Função para calcular o progresso das tarefas concluídas
   const calculateProgress = (tarefas) => {
     if (tarefas.length === 0) {
       setProgress(0);
@@ -26,25 +27,14 @@ const Home = () => {
     setProgress(progressPercentage);
   };
 
-  const goToConfig = () => {
-    router.replace('/config');
-  };
-
-  const goToAddTask = () => {
-    router.replace('/addTarefas');
-  };
-
-  const verTarefa = (id) => {
-    router.replace({ pathname: '/[id]', params: { id: id } });
-  };
-
   const getAllTarefas = async () => {
     try {
       const querySnapshot = await getDocs(query(collection(db, "Tarefas"), where("idUser", "==", user.uid)));
       let array = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setTarefas(array);
-      setFilteredTarefas(array); // Inicializa as tarefas filtradas com todas as tarefas
-      calculateProgress(array); // Calcula o progresso com base nas tarefas
+      setFilteredTarefas(array);
+      setTaskCount(array.length); // Atualiza o contador de tarefas
+      calculateProgress(array);
     } catch (error) {
       console.error(error);
     }
@@ -60,36 +50,66 @@ const Home = () => {
     } else {
       setFilteredTarefas(tarefas.filter(tarefa => tarefa.prioridade === selectedPriority));
     }
-    calculateProgress(tarefas); // Atualiza o progresso ao filtrar as tarefas
+    calculateProgress(tarefas);
   }, [selectedPriority, tarefas]);
 
-  const renderTask = ({ item }) => (
-    <List.Item
-      title={item.titulo} 
-      right={() => (
-        <View style={styles.taskActions}>
-          <List.Icon icon={item.conclusaoDaTarefa ? "check-circle-outline" : "circle-outline"} />
-        </View>
-      )}
-      style={styles.taskItem}
-      titleStyle={{ color: '#FFF' }} 
-      onPress={() => verTarefa(item.id)}
-    />
-  );
+  const getGravatarURL = (email) => {
+    const hash = md5(email.trim().toLowerCase());
+    const timestamp = new Date().getTime(); // Adiciona um timestamp para evitar cache
+    return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200&t=${timestamp}`;
+  };
+  
+
+  const handleProfilePicture = () => {
+    Alert.alert(
+      "Trocar Foto",
+      "Você deseja vincular sua conta com o Gravatar para trocar sua foto de perfil?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Sim",
+          onPress: () => Linking.openURL("https://gravatar.com"), // Abre o site do Gravatar
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const navigationView = () => (
     <View style={styles.drawer}>
+      {/* Filtro de prioridade */}
       <Text style={styles.drawerText}>Definir Prioridade</Text>
       <Picker
-          selectedValue={selectedPriority}
-          style={styles.picker}
-          onValueChange={(itemValue) => setSelectedPriority(itemValue)}>
-          <Picker.Item label="Alta" value="Alta" />
-          <Picker.Item label="Média" value="Média" />
-          <Picker.Item label="Baixa" value="Baixa" />
-          <Picker.Item label="Todas" value="Todas" />
+        selectedValue={selectedPriority}
+        style={styles.picker}
+        onValueChange={(itemValue) => setSelectedPriority(itemValue)}
+      >
+        <Picker.Item label="Alta" value="Alta" />
+        <Picker.Item label="Média" value="Média" />
+        <Picker.Item label="Baixa" value="Baixa" />
+        <Picker.Item label="Todas" value="Todas" />
       </Picker>
-      <Text style={styles.drawerText}>Prioridade selecionada: {selectedPriority}</Text>
+
+      {/* Contador de tarefas */}
+      <Text style={styles.drawerText}>Total de Tarefas: {taskCount}</Text>
+
+      {/* Ranking de progresso */}
+      <Text style={styles.drawerText}>Ranking de Progresso</Text>
+      <Text style={styles.infoText}>{progress.toFixed(1)}% concluído</Text>
+
+      {/* Links úteis */}
+      <Text style={styles.drawerText}>Links Úteis</Text>
+      <Text style={styles.link} onPress={() => Linking.openURL('https://www.google.com')}>Google</Text>
+      <Text style={styles.link} onPress={() => Linking.openURL('https://www.github.com')}>Developer GitHub</Text>
+
+      {/* Logs ou Estatísticas */}
+      <Text style={styles.drawerText}>Estatísticas do Usuário</Text>
+      <Text style={styles.infoText}>Usuário: {auth.currentUser?.displayName || 'Desconhecido'}</Text>
+      <Text style={styles.infoText}>Email: {auth.currentUser?.email || 'Não disponível'}</Text>
+      <Text style={styles.infoText}>Tarefas Criadas: {taskCount}</Text>
     </View>
   );
 
@@ -106,13 +126,15 @@ const Home = () => {
           style={styles.backgroundUser}
           resizeMode="cover"
         >
-          <View style={styles.user}>
-            <Image source={require('../assets/Elements/avatar-do-usuario.png')} style={styles.userImage} />
+          <TouchableOpacity style={styles.user} onPress={handleProfilePicture}>
+            <Image 
+              source={{ uri: getGravatarURL(auth.currentUser?.email || '') }} 
+              style={styles.userImage} 
+            />
             <Text style={styles.userName}>{auth.currentUser?.displayName || 'Usuário'}</Text>
-          </View>
+          </TouchableOpacity>
         </ImageBackground>
 
-        {/* Barra de progresso */}
         <View style={styles.progressSection}>
           <Text style={styles.progressText}>Progresso: {progress.toFixed(1)}%</Text>
           <View style={styles.progressBar}>
@@ -129,17 +151,29 @@ const Home = () => {
             <FlatList
               data={filteredTarefas}
               keyExtractor={(item) => item.id}
-              renderItem={renderTask}
+              renderItem={({ item }) => (
+                <List.Item
+                  title={item.titulo}
+                  right={() => (
+                    <View style={styles.taskActions}>
+                      <List.Icon icon={item.conclusaoDaTarefa ? "check-circle-outline" : "circle-outline"} />
+                    </View>
+                  )}
+                  style={styles.taskItem}
+                  titleStyle={{ color: '#FFF' }}
+                  onPress={() => router.replace({ pathname: '/[id]', params: { id: item.id } })}
+                />
+              )}
               ListEmptyComponent={<Text style={styles.emptyMessage}>Nenhuma tarefa encontrada.</Text>}
             />
           </ImageBackground>
         </View>
 
         <View style={styles.navigation}>
-          <Button onPress={goToConfig} style={styles.navButton}>
+          <Button onPress={() => router.replace('/config')} style={styles.navButton}>
             <Image style={styles.icon} source={require('../assets/Elements/configuracao.png')} />
           </Button>
-          <Button onPress={goToAddTask} style={styles.navButton}>
+          <Button onPress={() => router.replace('/addTarefas')} style={styles.navButton}>
             <Image style={styles.icon} source={require('../assets/Elements/mais.png')} />
           </Button>
           <Button onPress={() => drawer.current?.openDrawer()} style={styles.navButton}>
@@ -303,13 +337,25 @@ const styles = StyleSheet.create({
 
   progressBar: {
     height: 10,
-    borderRadius: 10,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#9E9E9E',
+    borderRadius: 5,
     overflow: 'hidden',
   },
 
   progressFill: {
     height: '100%',
-    backgroundColor: '#308282',
+    backgroundColor: '#3CA2A2',
+  },
+  
+  link: {
+    color: '#5B9BBE',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+
+  infoText: {
+    color: '#DCDCDC',
+    fontSize: 14,
+    marginBottom: 5,
   },
 });

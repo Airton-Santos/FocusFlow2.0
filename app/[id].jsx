@@ -6,7 +6,6 @@ import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Picker } from '@react-native-picker/picker'; // Importação atualizada
-import { Checkbox } from 'react-native-paper'; // Importar Checkbox
 
 const VerTarefa = () => {
   const { id } = useLocalSearchParams();
@@ -54,8 +53,9 @@ const VerTarefa = () => {
       Alert.alert('Erro', 'Por favor, preencha todos os campos.');
       return;
     }
-
+  
     try {
+      console.log('Tentando salvar alterações...');
       const docRef = doc(db, 'Tarefas', id);
       await updateDoc(docRef, {
         titulo,
@@ -64,13 +64,22 @@ const VerTarefa = () => {
         prioridade,
         topicos, // Salvar os tópicos atualizados
       });
+      console.log('Tarefa salva com sucesso no Firebase.');
+      
       setTarefa({ ...tarefa, titulo, description: descricao, conclusaoDaTarefa: concluida, prioridade });
       setEditing(false);
+  
+      // Exibir o alerta de sucesso
+      Alert.alert('Sucesso', 'Tarefa salva com sucesso!');
+      console.log('Alerta de sucesso exibido.');
     } catch (error) {
       console.error('Erro ao atualizar a tarefa: ', error);
       Alert.alert('Erro', 'Não foi possível salvar as alterações.');
     }
   };
+  
+  
+  
 
   const concluirTarefa = async () => {
     const allItensConcluidos = topicos.every(item => item.concluido === true); // Verificar se todos os tópicos estão concluídos
@@ -99,6 +108,7 @@ const VerTarefa = () => {
                   topicos: topicos, // Atualiza os tópicos
                 }));
                 setConcluida(true); // Atualiza o estado local da tarefa
+                handleGoBack(); // voltar para tela principal
               } catch (error) {
                 console.error('Erro ao concluir a tarefa: ', error);
               }
@@ -233,7 +243,7 @@ const VerTarefa = () => {
 
       {!editing && !tarefa.conclusaoDaTarefa && (
         <Button style={styles.button} onPress={concluirTarefa}>
-          <Text style={styles.buttonText}>Concluir Tarefa</Text>
+          <Text style={styles.buttonText}>Salvar</Text>
         </Button>
       )}
 
