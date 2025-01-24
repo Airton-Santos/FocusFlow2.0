@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../firebaseConfig'; // Adicionado Realtime Database
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
 
 const Entrar = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +18,6 @@ const Entrar = () => {
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isSenhaFocused, setIsSenhaFocused] = useState(false);
 
-
   // Função para realizar o login
   const handlerlogin = async () => {
     setErro('');
@@ -30,7 +28,9 @@ const Entrar = () => {
       const user = userCredential.user;
 
       if (!user.emailVerified) {
-        setErro('Por favor, verifique seu e-mail antes de tentar fazer o login.');
+        // Se o e-mail não estiver verificado, envia um novo e-mail de verificação
+        await sendEmailVerification(user);
+        setErro('Foi enviado um novo email de verificação para você. Verifique sua caixa de entrada antes de tentar o login novamente.');
         setLoginIcon(false);
         return;
       }
@@ -41,7 +41,6 @@ const Entrar = () => {
       router.replace('/home');
     } catch (error) {
       setErro('Ocorreu um erro ao tentar fazer o login. Tente novamente.');
-    } finally {
       setLoginIcon(false);
     }
   };
@@ -65,10 +64,7 @@ const Entrar = () => {
         <Text style={styles.text}>Entrar</Text>
 
         <TextInput
-          style={[
-            styles.input,
-            isEmailFocused && { borderColor: '#308282' },
-          ]}
+          style={[styles.input, isEmailFocused && { borderColor: '#308282' }]}
           outlineColor="transparent"
           mode="outlined"
           cursorColor="#fff"
@@ -210,12 +206,12 @@ const styles = StyleSheet.create({
   senhaContainer: {
     position: 'relative',
   },
-  
+
   eyeIcon: {
     position: 'absolute',
     right: 10,
     top: '50%',
     transform: [{ translateY: -12 }],
-    marginRight: 10
+    marginRight: 10,
   },
 });

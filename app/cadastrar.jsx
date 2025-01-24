@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Image, Alert } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { auth } from '../firebaseConfig';
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const Cadastrar = () => {
