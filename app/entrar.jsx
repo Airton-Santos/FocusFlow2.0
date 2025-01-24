@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, Image } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebaseConfig'; // Adicionado Realtime Database
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 const Entrar = () => {
@@ -12,6 +13,7 @@ const Entrar = () => {
   const [erro, setErro] = useState('');
   const [loginIcon, setLoginIcon] = useState(false);
   const router = useRouter();
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   // Estados de foco para os campos de entrada
   const [isEmailFocused, setIsEmailFocused] = useState(false);
@@ -81,25 +83,31 @@ const Entrar = () => {
           onBlur={() => setIsEmailFocused(false)}
         />
 
-        <TextInput
-          style={[
-            styles.input,
-            isSenhaFocused && { borderColor: '#308282' },
-          ]}
-          outlineColor="transparent"
-          mode="outlined"
-          cursorColor="#fff"
-          textColor="#fff"
-          placeholder="Senha"
-          placeholderTextColor="#A3B4B4"
-          secureTextEntry
-          underlineColor="transparent"
-          activeOutlineColor="transparent"
-          value={senha}
-          onChangeText={setSenha}
-          onFocus={() => setIsSenhaFocused(true)}
-          onBlur={() => setIsSenhaFocused(false)}
-        />
+        <View style={styles.senhaContainer}>
+          <TextInput
+            style={[styles.input, isSenhaFocused && { borderColor: '#308282' }]}
+            outlineColor="transparent"
+            mode="outlined"
+            cursorColor="#fff"
+            textColor="#fff"
+            placeholder="Senha"
+            placeholderTextColor="#A3B4B4"
+            secureTextEntry={!mostrarSenha}
+            underlineColor="transparent"
+            activeOutlineColor="transparent"
+            value={senha}
+            onChangeText={setSenha}
+            onFocus={() => setIsSenhaFocused(true)}
+            onBlur={() => setIsSenhaFocused(false)}
+          />
+          <MaterialCommunityIcons
+            name={mostrarSenha ? 'eye' : 'eye-off'}
+            size={24}
+            color="#fff"
+            onPress={() => setMostrarSenha(!mostrarSenha)}
+            style={styles.eyeIcon}
+          />
+        </View>
 
         {/* Exibindo o erro se houver */}
         {erro !== '' && <Text style={styles.errorText}>{erro}</Text>}
@@ -197,5 +205,17 @@ const styles = StyleSheet.create({
     color: 'red',
     fontSize: 14,
     marginTop: 10,
+  },
+
+  senhaContainer: {
+    position: 'relative',
+  },
+  
+  eyeIcon: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    marginRight: 10
   },
 });

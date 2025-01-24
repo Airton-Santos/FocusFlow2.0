@@ -1,21 +1,53 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, View, Image, ImageBackground, FlatList, DrawerLayoutAndroid, Linking, TouchableOpacity, Alert } from 'react-native'; 
-import { Button, List } from 'react-native-paper';
+import { Button, List} from 'react-native-paper'; // Importando o Checkbox
 import { useRouter } from 'expo-router';
 import { auth, db } from '../firebaseConfig';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { signOut } from "firebase/auth";
 import { Picker } from '@react-native-picker/picker';
-import md5 from 'md5'
+import md5 from 'md5';
 
 const Home = () => {
   const [tarefas, setTarefas] = useState([]);
   const [filteredTarefas, setFilteredTarefas] = useState([]);
   const [selectedPriority, setSelectedPriority] = useState('Todas');
   const [progress, setProgress] = useState(0);
-  const [taskCount, setTaskCount] = useState(0); // Contador de tarefas
+  const [taskCount, setTaskCount] = useState(0); 
   const user = auth.currentUser;
   const router = useRouter();
   const drawer = useRef(null);
+
+
+  const checkEmailVerification = () => {
+    if (user && !user.emailVerified) {
+      Alert.alert(
+        "Verifique seu e-mail",
+        "Seu e-mail ainda não foi verificado. Por favor, verifique sua caixa de entrada para confirmar seu e-mail.",
+        [
+          { text: "Ok" }
+        ]
+      );
+
+      verifyOff();
+    }
+  };
+
+  const verifyOff = async () => {
+    try {
+          await signOut(auth);
+          router.replace('/main'); // Redireciona para a tela principal após deslogar
+          console.log('Deslogado com sucesso');
+        } catch (error) {
+          Alert.alert("Erro", "Ocorreu um erro ao tentar sair.");
+          console.error('Erro ao tentar deslogar:', error); // Loga o erro para depuração
+        }
+  }
+
+  useEffect(() => {
+    checkEmailVerification(); // Verifica se o e-mail está verificado ao carregar a tela
+    getAllTarefas();
+  }, []);
 
   const calculateProgress = (tarefas) => {
     if (tarefas.length === 0) {
@@ -33,7 +65,7 @@ const Home = () => {
       let array = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setTarefas(array);
       setFilteredTarefas(array);
-      setTaskCount(array.length); // Atualiza o contador de tarefas
+      setTaskCount(array.length);
       calculateProgress(array);
     } catch (error) {
       console.error(error);
@@ -55,24 +87,17 @@ const Home = () => {
 
   const getGravatarURL = (email) => {
     const hash = md5(email.trim().toLowerCase());
-    const timestamp = new Date().getTime(); // Adiciona um timestamp para evitar cache
+    const timestamp = new Date().getTime();
     return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200&t=${timestamp}`;
   };
-  
 
   const handleProfilePicture = () => {
     Alert.alert(
       "Trocar Foto",
       "Você deseja vincular sua conta com o Gravatar para trocar sua foto de perfil?",
       [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Sim",
-          onPress: () => Linking.openURL("https://gravatar.com"), // Abre o site do Gravatar
-        },
+        { text: "Cancelar", style: "cancel" },
+        { text: "Sim", onPress: () => Linking.openURL("https://gravatar.com") },
       ],
       { cancelable: true }
     );
