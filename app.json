@@ -13,13 +13,15 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.airtonj.FocusFlow"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.airtonj.FocusFlow"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,7 +35,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "21002beb-9c2b-44f8-ace8-bc0d9d52abb1"
+        "projectId": "caa01387-dcbd-45de-bfad-194bd4eee8bd"
       }
     },
     "owner": "airtonj"
