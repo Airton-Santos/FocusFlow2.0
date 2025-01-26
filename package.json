@@ -11,6 +11,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-picker/picker": "^2.11.0",
+    "eas-cli": "^14.5.0",
     "expo": "~52.0.27",
     "expo-av": "^15.0.2",
     "expo-constants": "~17.0.4",
@@ -19,6 +20,7 @@
     "expo-linking": "~7.0.4",
     "expo-router": "~4.0.17",
     "expo-status-bar": "~2.0.1",
+    "expo-updates": "^0.26.13",
     "firebase": "^11.2.0",
     "md5": "^2.3.0",
     "react": "18.3.1",

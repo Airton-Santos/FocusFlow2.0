@@ -127,8 +127,8 @@ const Home = () => {
 
       {/* Links úteis */}
       <Text style={styles.drawerText}>Links Úteis</Text>
-      <Text style={styles.link} onPress={() => Linking.openURL('https://www.google.com')}>Google</Text>
-      <Text style={styles.link} onPress={() => Linking.openURL('https://www.github.com')}>Developer GitHub</Text>
+      <Text style={styles.link} onPress={() => Linking.openURL('https://portfolio-airton.netlify.app')}>Developer Portifólio</Text>
+      <Text style={styles.link} onPress={() => Linking.openURL('https://github.com/Airton-Santos')}>Developer GitHub</Text>
 
       {/* Logs ou Estatísticas */}
       <Text style={styles.drawerText}>Estatísticas do Usuário</Text>
